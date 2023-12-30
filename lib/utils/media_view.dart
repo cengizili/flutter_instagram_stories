@@ -1,37 +1,32 @@
 // ignore_for_file: must_be_immutable
 
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:codeway_stories/models/story_model.dart';
+import 'package:codeway_stories/providers/group_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
 
 class MediaView extends StatelessWidget {
-  String? url;
   double? width;
   double? height;
-  VideoPlayerController? videoController;
+  StoryModel storyModel;
 
   MediaView({
-    this.url,
-    this.videoController,
+    required this.storyModel,
     this.width,
     this.height
   });
 
   @override
   Widget build(BuildContext context) {
-    if (url != null) {
-      switch (url!.mediaType) {
+      switch (storyModel.mediaType) {
         case MediaType.img:
           return CachedNetworkImage(
             width: width,
             height: height,
-            imageUrl: url!,
-            placeholder: (context, url) => Container(
-              child: LinearProgressIndicator(
-                color: Colors.grey.shade200,
-                backgroundColor: Colors.grey.shade100,
-              ),
-            ),
+            imageUrl: storyModel.url,
+            placeholder: (context, url) => placeHolder(),
             errorWidget: (context, url, error) => Center(
                 child: Text(
                   error.toString(),
@@ -43,13 +38,26 @@ class MediaView extends StatelessWidget {
           return Container(
             width: width,
             height: height,
-            child: VideoPlayer(videoController!)
+            child: FutureBuilder(
+              future: storyModel.initVideo(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting)
+                return placeHolder();
+                return VideoPlayer(storyModel.videoController!);
+              })
           );
         default:
           return Container();
       }
-    }
-    return Container();
+  }
+
+  Container placeHolder() {
+    return Container(
+            child: LinearProgressIndicator(
+              color: Colors.grey.shade200,
+              backgroundColor: Colors.grey.shade100,
+            ),
+          );
   }
 }
 

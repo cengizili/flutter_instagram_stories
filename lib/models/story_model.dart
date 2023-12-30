@@ -6,6 +6,7 @@ import 'package:video_player/video_player.dart';
 class StoryModel {
   String url;
   VideoPlayerController? videoController;
+  bool isInitialized = false;
   StoryModel({
     required this.url,
   });
@@ -20,10 +21,17 @@ class StoryModel {
     }
   }
   // initialization is necessarry only for videos
-  Future<void> init() async {
+  Future<void> initVideo() async {
     if(url.mediaType == MediaType.mp4){
-      videoController = VideoPlayerController.networkUrl(Uri.parse(url));
-      await videoController?.initialize().then((value) async => await videoController?.play());
+      if (!isInitialized){
+        videoController = VideoPlayerController.networkUrl(Uri.parse(url));
+        await videoController?.initialize().then((value) async => await videoController?.play());
+        isInitialized = true;
+      }
     }
+  }
+
+  Future<void> resetAndPlayVideo () async {
+    await videoController?.seekTo(Duration.zero).then((value) async => await videoController?.play());
   }
 }

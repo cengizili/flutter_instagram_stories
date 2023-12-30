@@ -8,7 +8,8 @@ import 'package:video_player/video_player.dart';
 
 class GroupProvider extends ChangeNotifier {
   List<GroupModel> groupList;
-  late Timer timer;
+  PageController swipeController = PageController();
+  Timer? timer;
   bool isPaused = false;
   double progress = 0.0;
   final double updateInterval = 0.1;
@@ -21,6 +22,7 @@ class GroupProvider extends ChangeNotifier {
   }
 
   (int, GroupModel) get poppedGroup => groupList.indexed.firstWhere((element) => element.$2.isPopped==true);
+  int get poppedGroupIndex => poppedGroup.$1;
   StoryModel get poppedStory => poppedGroup.$2.poppedStory;
 
   // as soon as a group is popped, all the other groups should be marked as isPopped=false
@@ -35,56 +37,70 @@ class GroupProvider extends ChangeNotifier {
   }
 
   // runs after each transition, progress == 1 should trigger tapRight event
-  Future<void> resetTimer() async {
-    await poppedStory.init();
+  void resetTimer({Duration dur = const Duration(seconds: 5)}) {
+    timer?.cancel();
     progress = 0;
-    final duration = Duration(milliseconds: poppedStory.duration.inMilliseconds.toInt() ?? 0);
-    timer = Timer.periodic(Duration(milliseconds: (updateInterval * 1000).toInt()), (timer) {
+    final duration = Duration(milliseconds: dur.inMilliseconds.toInt() ?? 0);
+    timer = Timer.periodic(Duration(milliseconds: (updateInterval * 1000).toInt()), (timer) async {
       if(!isPaused)
-      progress = (progress + updateInterval / (poppedStory.duration.inSeconds ?? 1))
+      progress = (progress + updateInterval / (dur.inSeconds ?? 1))
           .clamp(0.0, 1.0); 
       if (progress >= 1.0) {
         progress = 0;
         timer.cancel();
-        tapRight();
+        await onTapRight();
       }
       notifyListeners();
     });
   }
 
   // swiping right means passing to the next group
-  Future<void> swipeRight() async {
-    if (poppedGroup.$1 > 0)
-    poppedGroup = groupList.indexed.firstWhere((element) => element.$1 == poppedGroup.$1-1);
-    timer.cancel();
-    await resetTimer();
+  // current story should be stopped and next one should be played if both are videos
+  Future<void> onSwipeRight() async {
+    await poppedStory.videoController?.pause();
+    if (poppedGroup.$1 > 0){
+      poppedGroup = groupList.indexed.firstWhere((element) => element.$1 == poppedGroup.$1-1);
+      await poppedStory.resetAndPlayVideo();
+    }
+    resetTimer();
     notifyListeners();
   }
 
-  // swiping left means going back to the previous group
-  Future<void> swipeLeft() async {
-    if (poppedGroup.$1 < groupList.length-1)
-    poppedGroup = groupList.indexed.firstWhere((element) => element.$1 == poppedGroup.$1+1);
-    timer.cancel();
-    await resetTimer();
+  // swiping left means going back to the previous group.
+  // current story should be stopped and next one should be played if both are videos
+  Future<void> onSwipeLeft() async {
+    await poppedStory.videoController?.pause();
+    if (poppedGroup.$1 < groupList.length-1){
+      poppedGroup = groupList.indexed.firstWhere((element) => element.$1 == poppedGroup.$1+1);
+      await poppedStory.resetAndPlayVideo();
+    }
+    resetTimer();
     notifyListeners();
   }
 
   // decrement currentStoryIndex, if this is the first story of the group, pass to the previous group if it exists
-  Future<void> tapLeft() async {
-    if (!poppedGroup.$2.tapLeft() && poppedGroup.$1 > 0)
-    poppedGroup = groupList.indexed.firstWhere((element) => element.$1 == poppedGroup.$1-1);
-    timer.cancel();
-    await resetTimer();
+  // current story should be stopped and next one should be played if both are videos
+  Future<void> onTapLeft() async {
+    await poppedStory.videoController?.pause();
+    if (!poppedGroup.$2.tapLeft() && poppedGroup.$1 > 0){
+      swipeController.previousPage(duration: Duration(milliseconds: 500), curve: Curves.linear);
+      poppedGroup = groupList.indexed.firstWhere((element) => element.$1 == poppedGroup.$1-1);
+    }
+    await poppedStory.resetAndPlayVideo();
+    resetTimer();
     notifyListeners();
   }
 
   // increment currentStoryIndex, if this is the last story of the group, pass to the next group if it exists
-  Future<void> tapRight() async {
-    if (!poppedGroup.$2.tapRight() && poppedGroup.$1 < groupList.length-1)
-    poppedGroup = groupList.indexed.firstWhere((element) => element.$1 == poppedGroup.$1+1);
-    timer.cancel();
-    await resetTimer();
+  // current story should be stopped and next one should be played if both are videos
+  Future<void> onTapRight() async {
+    await poppedStory.videoController?.pause();
+    if (!poppedGroup.$2.tapRight() && poppedGroup.$1 < groupList.length-1){
+      swipeController.nextPage(duration: Duration(milliseconds: 500), curve: Curves.linear);
+      poppedGroup = groupList.indexed.firstWhere((element) => element.$1 == poppedGroup.$1+1);
+    }
+    await poppedStory.resetAndPlayVideo();
+    resetTimer();
     notifyListeners();
   }
 }
