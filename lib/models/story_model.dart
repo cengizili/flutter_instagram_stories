@@ -22,13 +22,11 @@ class StoryModel {
   }
   // initialization is necessarry only for videos
   Future<void> initVideo() async {
-    if(url.mediaType == MediaType.mp4){
       if (!isInitialized){
         videoController = VideoPlayerController.networkUrl(Uri.parse(url));
         await videoController?.initialize().then((value) async => await videoController?.play());
         isInitialized = true;
       }
-    }
   }
 
   Future<void> resetAndPlayVideo () async {
