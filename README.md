@@ -1,4 +1,4 @@
-# codeway_stories
+# BASIC INSTAGRAM STORIES IMPLEMENTATION IN FLUTTER
 
 A new Flutter project.
 
